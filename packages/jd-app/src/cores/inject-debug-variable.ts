@@ -14,39 +14,52 @@ export class JDInjectDebugVariable extends JDInject {
         const that = this;
         astTypes.visit(this.tree, {
             visitVariableDeclarator(path) {
-                const vDebug = that.getParentNameVariableDebugger(path);
-                const name = path.value.id.name;
-                if (!name.startsWith('$jd')) {
-                    // normal
-                    let p = path.parentPath;
+                try {
+                    const vDebug = that.getParentNameVariableDebugger(path);
+                    const name = path.value.id.name;
+                    if (!name.startsWith('$jd')) {
+                        // normal
+                        let p = path.parentPath;
 
-                    // without for
-                    if (p?.parentPath?.node?.type !== 'ForInStatement') {
-                        p.insertAfter(that.createNodeDebugVariable(vDebug, name))
+                        // without for
+                        if (p?.parentPath?.node?.type !== 'ForInStatement') {
+                            p.insertAfter(that.createNodeDebugVariable(vDebug, name))
+                        }
                     }
+                } catch (e) {
+                    console.log(path.node);
+                    console.log(e);
                 }
                 this.traverse(path);
             },
             visitAssignmentExpression(path) {
-                // const vDebug = that.getParentNameVariableDebugger(path);
-                // const name = that.getNameVariable(path.value.left);
-                // if (!name.startsWith('$jd')) {
-                //     let p = path;
-                //     do {
-                //         p = p.parentPath;
-                //     } while (!p.parentPath?.node?.body);
-                //     p.insertAfter(that.createNodeDebugVariable(vDebug, name))
-                // }
+                try {
+                    const vDebug = that.getParentNameVariableDebugger(path);
+                    const name = that.getNameVariable(path.value.left);
+                    if (!name.startsWith('$jd')) {
+                        let p = path;
+                        do {
+                            p = p.parentPath;
+                        } while (!p.parentPath?.node?.body);
+                        p.insertAfter(that.createNodeDebugVariable(vDebug, name))
+                    }
+                }  catch (e) {
+                    console.log(path.node);
+                    console.log(e);
+                }
                 this.traverse(path);
             },
             visitFunction(path) {
                 this.traverse(path);
             },
+            visitFunctionDeclaration(path) {
+                that.visitFunction(path, this, path.value.id);
+            },
             visitFunctionExpression(path) {
-                that.visitFunction(path, this);
+                that.visitFunction(path, this, path.parentPath.value.id);
             },
             visitArrowFunctionExpression(path) {
-                that.visitFunction(path, this);
+                that.visitFunction(path, this, path.parentPath.value.id);
             }
         })
         if (this.tree.body) {
@@ -58,12 +71,12 @@ export class JDInjectDebugVariable extends JDInject {
         return "JD Inject Debug Variable";
     }
 
-    private visitFunction(path: any, obj: any) {
+    private visitFunction(path: any, obj: any, identifier: any) {
         const vDebug = this.getParentNameVariableDebugger(path);
         path.node.$jd$__rv = vDebug + '_';
         if (path.node.body.body) {
             path.node.body.body = [
-                this.createNodePrefixFunction(path.node.$jd$__rv, path.parentPath.value.id?.name || 'anonymous'),
+                this.createNodePrefixFunction(path.node.$jd$__rv, identifier?.name || 'anonymous'),
                 ...path.node.body.body
             ];
         }

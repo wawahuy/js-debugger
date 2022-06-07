@@ -1,9 +1,12 @@
+import * as fs from "fs";
+
 process.env['NODE_TLS_REJECT_UNAUTHORIZED'] = "0";
 
 import path from 'path';
 import child_process from 'child_process';
 import {log} from "@cores/logger";
 import {
+    createAppHttpHandler,
     PPCa,
     PPCaFileOptions,
     PPCaOptions, PPPassThroughHttpHandler,
@@ -44,10 +47,17 @@ async function getHttpsOption() {
             data: source.output()
         }
     })
-    server.addRule()
-        .host('103.142.26.166')
-        .url(/\.js(\?(.*))?$/gi).then(handler);
+    // server.addRule().url(/\.js(\?(.*))?$/gi).then(handler);
     await server.listen(configs.proxyPort);
+
+    /**
+     * Test watch
+     */
+    server.addRule().url('https://abc.com/a.js').then((req, res) => {
+        const s = new JDSource(fs.readFileSync(path.join(__dirname, '../test_view/script2.js')).toString());
+        res.set('content-type', 'text/plain');
+        res.send(s.output());
+    })
 
     if (process.env.NODE_ENV == 'production') {
         if (process.env.type == 'win32') {
